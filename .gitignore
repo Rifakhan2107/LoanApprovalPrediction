@@ -1,0 +1,27 @@
+
+# Python temporary files
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Frontend dependencies and generated builds
+node_modules/
+dist/
+build/
+.output/
+.nitro/
+
+# Private environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# Operating system files
+.DS_Store
+Thumbs.db

@@ -155,3 +155,87 @@ def test_cors_headers(client):
     response = client.get("/health", headers=headers)
     assert response.status_code == 200
     assert response.headers.get("Access-Control-Allow-Origin") == "http://localhost:5173"
+
+
+def test_predict_boundary_cibil_scores(client):
+    """POST /predict accepts CIBIL exactly at boundaries 300 and 900."""
+    low_cibil = VALID_APPROVED_APPLICANT.copy()
+    low_cibil["cibil_score"] = 300
+    res_low = client.post("/predict", json=low_cibil)
+    assert res_low.status_code == 200
+
+    high_cibil = VALID_APPROVED_APPLICANT.copy()
+    high_cibil["cibil_score"] = 900
+    res_high = client.post("/predict", json=high_cibil)
+    assert res_high.status_code == 200
+
+    over_cibil = VALID_APPROVED_APPLICANT.copy()
+    over_cibil["cibil_score"] = 901
+    res_over = client.post("/predict", json=over_cibil)
+    assert res_over.status_code == 400
+
+
+def test_predict_boundary_dependents(client):
+    """POST /predict accepts dependents at boundaries 0 and 5, but rejects > 5."""
+    dep_0 = VALID_APPROVED_APPLICANT.copy()
+    dep_0["no_of_dependents"] = 0
+    res_0 = client.post("/predict", json=dep_0)
+    assert res_0.status_code == 200
+
+    dep_5 = VALID_APPROVED_APPLICANT.copy()
+    dep_5["no_of_dependents"] = 5
+    res_5 = client.post("/predict", json=dep_5)
+    assert res_5.status_code == 200
+
+    dep_neg = VALID_APPROVED_APPLICANT.copy()
+    dep_neg["no_of_dependents"] = -1
+    res_neg = client.post("/predict", json=dep_neg)
+    assert res_neg.status_code == 400
+
+
+def test_predict_zero_asset_values(client):
+    """POST /predict accepts 0 values for monetary assets."""
+    zero_assets = VALID_APPROVED_APPLICANT.copy()
+    zero_assets["commercial_assets_value"] = 0
+    zero_assets["residential_assets_value"] = 0
+    zero_assets["bank_asset_value"] = 0
+    response = client.post("/predict", json=zero_assets)
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["prediction"] in ("Approved", "Rejected")
+
+
+def test_predict_invalid_loan_term(client):
+    """POST /predict rejects 0 or negative loan_term."""
+    zero_term = VALID_APPROVED_APPLICANT.copy()
+    zero_term["loan_term"] = 0
+    res_0 = client.post("/predict", json=zero_term)
+    assert res_0.status_code == 400
+
+    neg_term = VALID_APPROVED_APPLICANT.copy()
+    neg_term["loan_term"] = -5
+    res_neg = client.post("/predict", json=neg_term)
+    assert res_neg.status_code == 400
+
+
+def test_predict_nan_inf_rejected(client):
+    """POST /predict rejects NaN or Infinity values."""
+    nan_app = VALID_APPROVED_APPLICANT.copy()
+    nan_app["income_annum"] = "NaN"
+    res_nan = client.post("/predict", json=nan_app)
+    assert res_nan.status_code == 400
+
+    inf_app = VALID_APPROVED_APPLICANT.copy()
+    inf_app["loan_amount"] = "Infinity"
+    res_inf = client.post("/predict", json=inf_app)
+    assert res_inf.status_code == 400
+
+
+def test_predict_empty_or_whitespace_fields(client):
+    """POST /predict rejects empty strings or whitespace-only inputs."""
+    empty_app = VALID_APPROVED_APPLICANT.copy()
+    empty_app["education"] = "   "
+    res = client.post("/predict", json=empty_app)
+    assert res.status_code == 400
+    assert "Missing required fields" in res.get_json()["error"]
+

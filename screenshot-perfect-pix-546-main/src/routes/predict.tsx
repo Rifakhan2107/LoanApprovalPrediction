@@ -4,12 +4,14 @@ import { AlertTriangle, FileText, Loader2, RotateCcw, Send, ServerOff } from "lu
 import { Card, PageHeader, StatusBadge } from "@/components/common";
 import { Button } from "@/components/ui/button";
 import { predictLoan } from "@/services/api";
+import { savePredictionRecord } from "@/services/predictionHistory";
 import type {
   ApiError,
   LoanApplication,
   LoanFieldKey,
   LoanFormErrors,
   LoanFormValues,
+  PredictionRecord,
   PredictionResult,
 } from "@/types/loan";
 import {
@@ -163,6 +165,7 @@ function PredictPage() {
   const [result, setResult] = useState<{
     data: PredictionResult;
     submitted: LoanApplication;
+    savedRecord?: PredictionRecord;
   } | null>(null);
   const [apiError, setApiError] = useState<ApiError | null>(null);
   const lastApp = useRef<LoanApplication | null>(null);
@@ -181,11 +184,18 @@ function PredictPage() {
     setPending(true);
     setApiError(null);
     setResult(null);
-    const res = await predictLoan(app);
-    if (res.ok) setResult({ data: res.data, submitted: app });
-    else setApiError(res.error);
-    setPending(false);
-    inFlight.current = false;
+    try {
+      const res = await predictLoan(app);
+      if (res.ok) {
+        const saved = savePredictionRecord(app, res.data);
+        setResult({ data: res.data, submitted: app, savedRecord: saved });
+      } else {
+        setApiError(res.error);
+      }
+    } finally {
+      setPending(false);
+      inFlight.current = false;
+    }
   };
 
   const onSubmit = (e: FormEvent) => {
@@ -335,7 +345,12 @@ function PredictPage() {
 
         <div aria-live="polite" className="min-w-0 xl:sticky xl:top-20 xl:self-start">
           {result && (
-            <ResultPanel result={result.data} submitted={result.submitted} onAgain={reset} />
+            <ResultPanel
+              result={result.data}
+              submitted={result.submitted}
+              savedRecord={result.savedRecord}
+              onAgain={reset}
+            />
           )}
           {apiError && (
             <Card className="border-destructive/30 min-w-0 overflow-hidden">
@@ -381,10 +396,12 @@ function PredictPage() {
 function ResultPanel({
   result,
   submitted,
+  savedRecord,
   onAgain,
 }: {
   result: PredictionResult;
   submitted: LoanApplication;
+  savedRecord?: PredictionRecord;
   onAgain: () => void;
 }) {
   const rows: [string, string][] = [
@@ -402,10 +419,16 @@ function ResultPanel({
   ];
   return (
     <Card className="min-w-0">
-      <p className="text-sm text-muted-foreground">Model prediction</p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm text-muted-foreground">Model prediction</p>
+        {savedRecord && (
+          <span className="font-mono text-xs text-muted-foreground">{savedRecord.reference}</span>
+        )}
+      </div>
       <div className="mt-2">
         <StatusBadge outcome={result.prediction} size="lg" />
       </div>
+      {savedRecord && <p className="mt-2 text-xs text-success">✓ Saved to prediction history</p>}
       {result.approval_probability !== undefined && (
         <p className="tabular mt-3 text-sm">
           Approval probability: <strong>{(result.approval_probability * 100).toFixed(1)}%</strong>

@@ -1,7 +1,7 @@
-
 # Python temporary files
 __pycache__/
 *.py[cod]
+.pytest_cache/
 .venv/
 venv/
 env/
@@ -12,6 +12,7 @@ dist/
 build/
 .output/
 .nitro/
+.wrangler/
 
 # Private environment files
 .env

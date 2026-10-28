@@ -67,3 +67,10 @@ export interface DemoRecord {
   no_of_dependents: number;
   outcome: LoanOutcome;
 }
+
+export interface PredictionRecord extends LoanApplication {
+  reference: string;
+  date: string; // ISO timestamp
+  outcome: LoanOutcome;
+  approval_probability?: number;
+}

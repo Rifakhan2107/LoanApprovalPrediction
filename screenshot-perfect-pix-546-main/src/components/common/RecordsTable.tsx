@@ -1,18 +1,12 @@
 import { Eye } from "lucide-react";
-import type { DemoRecord } from "@/types/loan";
+import type { DemoRecord, PredictionRecord } from "@/types/loan";
 import { formatDateTime, formatINR } from "@/utils/format";
 import { StatusBadge } from "./index";
 import { Button } from "@/components/ui/button";
 
-export function RecordsTable({
-  records,
-  onView,
-  caption,
-}: {
-  records: DemoRecord[];
-  onView: (r: DemoRecord) => void;
-  caption: string;
-}) {
+export function RecordsTable<
+  T extends PredictionRecord | DemoRecord = PredictionRecord | DemoRecord,
+>({ records, onView, caption }: { records: T[]; onView: (r: T) => void; caption: string }) {
   return (
     <div className="w-full min-w-0 max-w-full overflow-hidden">
       <p className="text-[11px] text-muted-foreground sm:hidden mb-2">

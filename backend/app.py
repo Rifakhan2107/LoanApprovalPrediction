@@ -1,5 +1,6 @@
 import os
 import sys
+import math
 import logging
 import joblib
 import pandas as pd
@@ -16,12 +17,16 @@ logger = logging.getLogger(__name__)
 # Initialize Flask application
 app = Flask(__name__)
 
-# Configure CORS specifically for local Vite frontend development origins
+# Configure CORS specifically for local Vite/React frontend development origins
 ALLOWED_ORIGINS = [
     "http://localhost:8080",
     "http://127.0.0.1:8080",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:4173",
+    "http://127.0.0.1:4173",
 ]
 CORS(app, origins=ALLOWED_ORIGINS, supports_credentials=True)
 
@@ -104,8 +109,11 @@ def validate_application_data(data: dict):
     if not isinstance(data, dict):
         return None, "Request body must be a valid JSON object."
 
-    # Check for missing required fields
-    missing_fields = [f for f in EXPECTED_FEATURES if f not in data or data[f] is None or data[f] == ""]
+    # Check for missing required fields (including empty or whitespace-only strings)
+    missing_fields = [
+        f for f in EXPECTED_FEATURES
+        if f not in data or data[f] is None or (isinstance(data[f], str) and data[f].strip() == "")
+    ]
     if missing_fields:
         return None, f"Missing required fields: {', '.join(missing_fields)}"
 
@@ -126,7 +134,7 @@ def validate_application_data(data: dict):
     # Validate numeric: no_of_dependents
     try:
         dep = float(data["no_of_dependents"])
-        if not dep.is_integer() or dep < 0 or dep > 5:
+        if not math.isfinite(dep) or not dep.is_integer() or dep < 0 or dep > 5:
             return None, "Field 'no_of_dependents' must be an integer between 0 and 5."
         cleaned["no_of_dependents"] = int(dep)
     except (ValueError, TypeError):
@@ -135,7 +143,7 @@ def validate_application_data(data: dict):
     # Validate numeric: cibil_score
     try:
         cibil = float(data["cibil_score"])
-        if cibil < 300 or cibil > 900:
+        if not math.isfinite(cibil) or cibil < 300 or cibil > 900:
             return None, "Field 'cibil_score' must be between 300 and 900."
         cleaned["cibil_score"] = cibil
     except (ValueError, TypeError):
@@ -144,7 +152,7 @@ def validate_application_data(data: dict):
     # Validate numeric: loan_term
     try:
         term = float(data["loan_term"])
-        if term <= 0:
+        if not math.isfinite(term) or term <= 0:
             return None, "Field 'loan_term' must be greater than 0."
         cleaned["loan_term"] = term
     except (ValueError, TypeError):
@@ -163,7 +171,7 @@ def validate_application_data(data: dict):
     for field in monetary_fields:
         try:
             val = float(data[field])
-            if val < 0:
+            if not math.isfinite(val) or val < 0:
                 return None, f"Field '{field}' cannot be negative."
             cleaned[field] = val
         except (ValueError, TypeError):
